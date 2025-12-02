@@ -1,10 +1,26 @@
 import argparse
 import json
+import os
 import subprocess
 import time
 
 from commands import BaseCommand
 from core.wireless_monitor import WirelessMonitor
+
+def get_unique_filename(base_path: str) -> str:
+    """
+    If base_path exists, append _1, _2, etc. until a free filename is found.
+    """
+    if not os.path.exists(base_path):
+        return base_path
+
+    name, ext = os.path.splitext(base_path)
+    counter = 1
+    while True:
+        new_path = f"{name}_{counter}{ext}"
+        if not os.path.exists(new_path):
+            return new_path
+        counter += 1
 
 def list_interfaces():
     result = subprocess.run(['ip', 'link', 'show'], capture_output=True, text=True)
@@ -25,7 +41,7 @@ class ScanCommand(BaseCommand):
         parser.add_argument('interface', nargs='?', help='Interface (Managed or Monitor mode OK)', metavar='INTERFACE',)
         parser.add_argument('-l', '--loops', type=int, default=1, help='number of scan loops to perform', metavar='LOOPS')
         parser.add_argument('-r', '--reverse', action='store_true', help='reverse output')
-        parser.add_argument('-o', '--out', default='results.json', help='specify file to save results (default results.json)', metavar='OUTPUT')
+        parser.add_argument('-o', '--out', help='specify file to save results (default results.json)', metavar='OUTPUT')
         parser.epilog = "Example: sudo main.py scan wlan0 -l 3 -r -o results"
 
     def execute(self, **kwargs) -> str:
@@ -59,13 +75,17 @@ class ScanCommand(BaseCommand):
         if not results:
             return "[FAILURE] No networks found. Check interface state."
 
-        try:
-            serializable_results = {str(k): v for k, v in results.items()}
-            with open(output, 'w') as f:
-                json.dump(serializable_results, f, indent=4)
-                print(f"\n[*] Results saved to '{output}'")
-        except Exception as e:
-            print(f"[WARNING] Failed to save JSON: {e}")
+        if output:
+            output = get_unique_filename(output)
+            try:
+                serializable_results = {
+                    str(k): v for k, v in results.items()
+                }
+                with open(output, 'w') as f:
+                    json.dump(serializable_results, f, indent=4)
+                    print(f"\n[*] Results saved to '{output}'")
+            except Exception as e:
+                print(f"[WARNING] Failed to save JSON: {e}")
 
         return f"Scan complete."
 
