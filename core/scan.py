@@ -30,7 +30,7 @@ def list_interfaces():
     return interfaces
 
 
-def perform_scan(interface: str, loops: int = 1, reverse: bool = False, output: str = None) -> dict:
+def perform_scan(interface: str, bssid: str = 'None', loops: int = 1, reverse: bool = False, output: str = None) -> dict:
     monitor = WirelessMonitor(interface=interface)
 
     for i in range(loops):

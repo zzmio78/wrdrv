@@ -13,15 +13,16 @@ class CLIDriver:
                 cmd_parser = self.subparsers.add_parser(name, help=f"Scan all surrounding networks.")
                 cmd_class.configure_parser(cmd_parser)
 
-
     def run(self):
         try:
             args = self.parser.parse_args()
             command_args = vars(args)
             command_class = COMMAND_REGISTRY[command_args.pop('command_name')]
             print(command_class().execute(**command_args))
-        except SystemExit: pass
-        except Exception as e: print(f"[FATAL ERROR] {e}", file=sys.stderr)
+        except SystemExit:
+            pass
+        except Exception as e:
+            print(f"[FATAL ERROR] {e}", file=sys.stderr)
 
 if __name__ == "__main__":
     driver = CLIDriver()

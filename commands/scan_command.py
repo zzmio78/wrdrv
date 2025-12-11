@@ -9,7 +9,8 @@ class ScanCommand(BaseCommand):
 
     @classmethod
     def configure_parser(cls, parser: argparse.ArgumentParser):
-        parser.add_argument('interface', nargs='?', help='Interface (Managed or Monitor mode OK)', metavar='INTERFACE',)
+        parser.add_argument('interface', nargs='?', help='Interface (Managed or Monitor mode OK)', metavar='INTERFACE')
+        parser.add_argument('-b', '--bssid', help='Target specific BSSID', metavar='BSSID')
         parser.add_argument('-l', '--loops', type=int, default=1, help='number of scan loops to perform', metavar='LOOPS')
         parser.add_argument('-r', '--reverse', action='store_true', help='reverse output')
         parser.add_argument('-o', '--out', help='specify file to save results (default results.json)', metavar='OUTPUT')
@@ -21,9 +22,10 @@ class ScanCommand(BaseCommand):
             print(f"[ERROR] Interface required. Available: {', '.join(list_interfaces())}")
             raise SystemExit(1)
 
+        bssid = kwargs.get('bssid')
         loops = kwargs.get('loops', 1)
         reverse = kwargs.get('reverse', False)
         output = kwargs.get('out')
 
-        results = perform_scan(interface, loops, reverse, output)
+        results = perform_scan(interface, bssid, loops, reverse, output)
         return f"Scan complete. Found {len(results)} networks."
