@@ -12,6 +12,7 @@ class ScanCommand(BaseCommand):
         parser.add_argument('interface', nargs='?', help='Interface (Managed or Monitor mode OK)', metavar='INTERFACE')
         parser.add_argument('-b', '--bssid', help='Target specific BSSID', metavar='BSSID')
         parser.add_argument('-l', '--loops', type=int, default=1, help='number of scan loops to perform', metavar='LOOPS')
+        parser.add_argument('-n', '--no-stop', action='store_true', help='scan indefinitely until stopping')
         parser.add_argument('-r', '--reverse', action='store_true', help='reverse output')
         parser.add_argument('-o', '--out', help='specify file to save results (default results.json)', metavar='OUTPUT')
         parser.epilog = "Example: sudo main.py scan wlan0 -l 3 -r -o results"
@@ -25,7 +26,16 @@ class ScanCommand(BaseCommand):
         bssid = kwargs.get('bssid')
         loops = kwargs.get('loops', 1)
         reverse = kwargs.get('reverse', False)
+        no_stop = kwargs.get('no_stop', False)
         output = kwargs.get('out')
 
-        results = perform_scan(interface, bssid, loops, reverse, output)
+        results = perform_scan(
+            interface=interface,
+            bssid=bssid,
+            loops=loops,
+            no_stop=no_stop,
+            reverse=reverse,
+            output=output
+)
+
         return f"Scan complete. Found {len(results)} networks."

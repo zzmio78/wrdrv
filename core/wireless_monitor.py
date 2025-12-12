@@ -3,8 +3,6 @@ import os
 import re
 from typing import Dict, List, Optional
 
-NETWORK_RESULTS = {}
-
 class WirelessMonitor:
     """
         Discovers APs using `iw`. Parses the output.
@@ -16,23 +14,26 @@ class WirelessMonitor:
     def __init__(self, interface: str):
         self.interface = interface
         self.vuln_list = ["D-Link DIR-600", "TP-Link TL-WR841N"]
+        self.networks: Dict[str, dict] = {}
 
     def perform_scan(self) -> str:
         """
         Executes a scan via 'iw'.
         """
-        global NETWORK_RESULTS
-
         if not os.path.exists(f"/sys/class/net/{self.interface}"):
             return f"[FAILURE] Interface {self.interface} not found."
 
         try:
             cmd = ["sudo", "iw", "dev", self.interface, "scan"]
             proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            networks = self._parse_iw_output(proc.stdout)
-            for net in networks:
-                NETWORK_RESULTS[net['BSSID']] = net
-            return f"[SUCCESS] Scan Complete."
+
+            scanned_networks = self._parse_iw_output(proc.stdout)
+
+            for net in scanned_networks:
+                self.networks[net['BSSID']] = net
+
+            return f"[SUCCESS] Scan Complete. Found {len(scanned_networks)} APs."
+
         except subprocess.CalledProcessError as e:
             return f"[FAILURE] Scan failed (Exit Code {e.returncode}): {e.stderr.strip()}"
         except Exception as e:
@@ -48,15 +49,19 @@ class WirelessMonitor:
         lines = raw_output.splitlines()
         for line in lines:
             line = line.strip()
-            tokens = line.split()
-            if not tokens:
+            if not line:
                 continue
 
-            if tokens[0] == "BSS":
+            tokens = line.split()
+            token = tokens[0]
+
+            if token == "BSS":
+                if current_net:
+                    networks.append(current_net)
+
                 mac_candidate = tokens[1].split('(')[0]
+
                 if self.RE_BSS_MAC.match(mac_candidate):
-                    if current_net:
-                        networks.append(current_net)
                     current_net = {
                         'BSSID': mac_candidate.upper(),
                         'ESSID': '<Hidden>',
@@ -74,8 +79,6 @@ class WirelessMonitor:
 
             if current_net is None:
                 continue
-
-            token = tokens[0]
 
             if token == "SSID:":
                 ssid_val = line[5:].strip()
@@ -115,56 +118,64 @@ class WirelessMonitor:
         return networks
 
     def get_results(self, reverse_scan: bool = False) -> Dict[int, dict]:
-        global NETWORK_RESULTS
-        networks = list(NETWORK_RESULTS.values())
-        if not networks:
+        """
+        Returns a sorted dictionary of networks and prints a table to stdout.
+        """
+        networks_list = list(self.networks.values())
+
+        if not networks_list:
             return {}
 
-        networks.sort(key=lambda x: x['Signal_dBm'], reverse=True)
-        network_list = {(i + 1): network for i, network in enumerate(networks)}
+        networks_list.sort(key=lambda x: x['Signal_dBm'], reverse=True)
 
-        def colored(text, color=None):
-            if color == 'green': return f'\033[92m{text}\033[00m'
-            if color == 'red': return f'\033[91m{text}\033[00m'
-            if color == 'yellow': return f'\033[93m{text}\033[00m'
-            return text
+        indexed_results = {(i + 1): net for i, net in enumerate(networks_list)}
 
-        def truncate_str(s, length):
-            if s is None: s = ""
-            if len(s) > length:
-                return s[:length - 1] + "_"
-            return s + ' ' * (length - len(s))
-
-        print(f'\nNetworks found: {len(networks)}')
+        print(f'\nNetworks found: {len( indexed_results)}')
         # Header
         print('{:<4} {:<18} {:<22} {:<4} {:<7} {:<6} {:<10} {:<10}'.format(
             '#', 'BSSID', 'ESSID', 'CH', 'PWR', 'Enc', 'Cipher', 'WPS'))
 
-        items = list(network_list.items())
+        items = list(indexed_results.items())
         if reverse_scan:
             items = items[::-1]
 
         for n, net in items:
-            enc_str = "Open"
-            if net['WPA2']: enc_str = "WPA2"
-            elif net['WPA']: enc_str = "WPA"
-            elif net['WEP']: enc_str = "WEP"
+            self._print_network_row(n, net)
 
-            ciphers = []
-            if net['CCMP']: ciphers.append("CCMP")
-            if net['TKIP']: ciphers.append("TKIP")
-            cipher_str = "+".join(ciphers) if ciphers else ""
+        return indexed_results
 
-            line = ' '.join([
-                truncate_str(f'{n})', 4),
-                truncate_str(net['BSSID'], 18),
-                truncate_str(net['ESSID'], 22),
-                truncate_str(str(net['Channel']), 4),
-                truncate_str(str(int(net['Signal_dBm'])), 7),
-                truncate_str(enc_str, 6),
-                truncate_str(cipher_str, 10),
-                truncate_str(str(net['WPS']), 10),
-            ])
-            print(colored(line))
+    def _print_network_row(self, index: int, net: dict):
+        """Helper to print a single row cleanly"""
+        def truncate(s, length):
+            s = str(s)
+            return s[:length-1] + " " if len(s) > length else s.ljust(length)
 
-        return network_list
+        def colorize(text, color_code):
+            return f"\033[{color_code}m{text}\033[0m"
+
+        if net['WPA2']: enc_str = "WPA2"
+        elif net['WPA']: enc_str = "WPA"
+        elif net['WEP']: enc_str = "WEP"
+        else: enc_str = "Open"
+
+        ciphers = []
+        if net['CCMP']: ciphers.append("CCMP")
+        if net['TKIP']: ciphers.append("TKIP")
+        cipher_str = "+".join(ciphers)
+
+        row = [
+            truncate(f"{index})", 4),
+            truncate(net['BSSID'], 18),
+            truncate(net['ESSID'], 22),
+            truncate(net['Channel'], 4),
+            truncate(int(net['Signal_dBm']), 7),
+            truncate(enc_str, 6),
+            truncate(cipher_str, 10),
+            truncate(net['WPS'], 10)
+        ]
+
+        line = " ".join(row)
+        if enc_str == "Open":
+            print(colorize(line, "92"))
+        else:
+            print(line)

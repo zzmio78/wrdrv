@@ -1,8 +1,10 @@
 # core/scan.py
 import datetime
+import itertools
 import json
 import os
 import subprocess
+import time
 
 from core.wireless_monitor import WirelessMonitor
 
@@ -31,27 +33,34 @@ def list_interfaces():
     return interfaces
 
 
-def perform_scan(interface: str, bssid: str = 'None', loops: int = 1, reverse: bool = False, output: str = None) -> dict:
+def perform_scan(interface: str, bssid: str = 'None', loops: int = 1, no_stop: bool = False, reverse: bool = False, output: str = None) -> dict:
     monitor = WirelessMonitor(interface=interface)
     results = dict()
 
     if output:
         output_file = get_unique_filename(output)
 
-    for i in range(loops):
-        msg = monitor.perform_scan()
-        if "[FAILURE]" in msg:
-            raise RuntimeError(msg)
-        current_scan_data = monitor.get_results(reverse_scan=reverse)
-        results.update(current_scan_data)
+    loop_iterator = itertools.count() if no_stop else range(loops)
+    try:
+        for i in loop_iterator:
+            msg = monitor.perform_scan()
+            if "[FAILURE]" in msg:
+                raise RuntimeError(msg)
+            current_scan_data = monitor.get_results(reverse_scan=reverse)
+            results.update(current_scan_data)
 
-        if output:
-            with open(output_file, 'a') as f:
-                t = datetime.datetime.now()
-                record = {
-                    "timestamp": t.isoformat(),
-                    "loop": i + 1,
-                    "scan_data": {str(k): v for k, v in current_scan_data.items()}
-                }
-                f.write(json.dumps(record) + "\n")
+            if output:
+                with open(output_file, 'a') as f:
+                    t = datetime.datetime.now()
+                    record = {
+                        "timestamp": t.isoformat(),
+                        "loop": i + 1,
+                        "scan_data": {str(k): v for k, v in current_scan_data.items()}
+                    }
+                    f.write(json.dumps(record) + "\n")
+            time.sleep(0.3)
+    except KeyboardInterrupt:
+        if no_stop:
+            print('\nScan interrupted.')
+
     return results
