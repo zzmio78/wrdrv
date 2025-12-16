@@ -3,7 +3,8 @@ import os
 import sys
 
 from commands import BaseCommand
-from core.interface_management import InterfaceManagement, ConflictResolver
+from core.interface_management import InterfaceManagement
+from core.conflict_resolver import ConflictResolver
 from core.scan import list_interfaces
 
 
