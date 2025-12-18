@@ -1,9 +1,7 @@
-# core/scan.py
 import datetime
 import itertools
 import json
 import os
-import subprocess
 import time
 
 from core.wireless_monitor import WirelessMonitor
@@ -22,16 +20,6 @@ def get_unique_filename(base_path: str) -> str:
         if not os.path.exists(new_path):
             return new_path
         counter += 1
-
-def list_interfaces():
-    result = subprocess.run(['ip', 'link', 'show'], capture_output=True, text=True)
-    interfaces = []
-    for line in result.stdout.splitlines():
-        if ': ' in line:
-            iface = line.split(': ')[1].split('@')[0]
-            interfaces.append(iface)
-    return interfaces
-
 
 def perform_scan(interface: str, bssid: str = 'None', loops: int = 1, no_stop: bool = False,
                  reverse: bool = False, output: str = None) -> dict:

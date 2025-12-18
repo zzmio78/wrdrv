@@ -1,7 +1,8 @@
 import argparse
 
 from commands import BaseCommand
-from core.scan import perform_scan, list_interfaces
+from core.scan import perform_scan
+from utils.interface_checker import list_interfaces
 
 class ScanCommand(BaseCommand):
     NAME = "scan"
