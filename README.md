@@ -2,7 +2,7 @@
 
 A modular Python-based framework for 802.11 reconnaissance, wardriving, and penetration testing.
 
-This tool is intended to be used as a fast pipeline that collects WPS material without committing to cracking (potentially useful in statistical modeling on WPS configuration prevalence).
+This tool is intended to be used as a fast pipeline that collects AP data, including WPS material without committing to cracking (potentially useful in statistical modeling on WPS configuration prevalence).
 
 Current tools like `reaver` or `bully` are designed to sit and wait. Instead of "Target -> Retrieve Message -> Crack -> Next", this tool aims to automate the process without stopping on one target "Scan -> Retrieve Message -> Store -> Next"
 
@@ -35,7 +35,6 @@ python3 main.py -h
 - [x] Monitor Mode Toggle: Create a reliable method to take an interface down, set mode to monitor, and bring it up.
 
 ```bash
-# For more information: 
 python3 main.py {monitor/managed} -h
 ```
 
